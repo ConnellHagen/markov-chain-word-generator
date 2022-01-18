@@ -1,15 +1,15 @@
-import java.io.File;
 import java.util.Scanner;
+import java.io.File;
 
 public class WordGenerator {
 
     private float[] firstLetters;
     private float[][] nextLetters;
-    private File source;
+    private File book;
 
     public WordGenerator(File source) {
 
-        this.source = source;
+        this.book = source;
         //A-Z
         firstLetters = new float[26];
         //A-Z, " " where " " includes punctuation, and all non-letter characters
@@ -23,46 +23,48 @@ public class WordGenerator {
 
         int[] firstLetFreq = new int[26];
         int[][] nextLetFreq = new int[26][27];
-        for(int i = 0; i < firstLetFreq.length; i++){
-            firstLetFreq[i] = (int)(Math.random() * 100);
-        }
-        for(int i = 0; i < nextLetFreq.length; i++){
-            for(int j = 0; j < nextLetFreq[i].length; j++){
-                nextLetFreq[i][j] = (int)(Math.random() * 100);
-            }
-        }
 
-        System.out.println("were here");
-        /*
         try{
-            Scanner lineScanner = new Scanner(source);
-            while(lineScanner.hasNextLine()){
-                Scanner wordScanner = new Scanner(lineScanner.nextLine());
-                while(wordScanner.hasNext("\\w*\\W")){
+            Scanner wordScanner = new Scanner(book);
+            wordScanner.useDelimiter("[\\W]+");
 
-                    String tempWord = wordScanner.next("\\w*\\W");
-                    for(int i = 0; i < tempWord.length(); i++){
-                        if(i == 0){
-                            firstLetFreq[alphaToInt(tempWord.charAt(0))] += 1;
-                        }
-                        else if(i == tempWord.length() - 1){
-                            nextLetFreq[alphaToInt(tempWord.charAt(i - 1))][26] += 1;
-                        }
-                        else{
-                            nextLetFreq[alphaToInt(tempWord.charAt(i - 1))][alphaToInt(tempWord.charAt(i))] += 1;
-                        }
+            while(wordScanner.hasNext()){
+                String tempWord = wordScanner.next();
+                for(int i = 0; i < tempWord.length(); i++){
+                    if(i == 0){
+                        //[current]
+                        int index = alphaToInt(tempWord.charAt(0));
+                        if(index == -1) continue;
+
+                        firstLetFreq[index] += 1;
                     }
+                    else if(i == tempWord.length() - 1){
+                        int prevIndex = alphaToInt(tempWord.charAt(i - 1));
+                        int currentIndex = alphaToInt(tempWord.charAt(i));
+                        if(prevIndex == -1 || currentIndex == -1) continue;
 
+                        //[prev, current]
+                        nextLetFreq[prevIndex][currentIndex] += 1;
+                        //[current, next (end of word)]
+                        nextLetFreq[currentIndex][26] += 1;
+                    }
+                    else{
+                        int prevIndex = alphaToInt(tempWord.charAt(i - 1));
+                        int currentIndex = alphaToInt(tempWord.charAt(i));
+                        if(prevIndex == -1 || currentIndex == -1) continue;
+
+                        //[prev, current]
+                        nextLetFreq[alphaToInt(tempWord.charAt(i - 1))][alphaToInt(tempWord.charAt(i))] += 1;
+                    }
                 }
-                wordScanner.close();
+
             }
-            lineScanner.close();
+            wordScanner.close();
         }
         catch(Exception e){
             e.printStackTrace();
             return;
         }
-        */
 
         int firstLetTotal = 0;
         for(int i = 0; i < firstLetFreq.length; i++){
@@ -73,7 +75,6 @@ public class WordGenerator {
             //taking count for the subsequent letters
             for(int j = 0; j < nextLetFreq.length; j++){
                 nextLetTotal += nextLetFreq[i][j];
-                System.out.println(nextLetTotal);
             }
 
             //copying over probabilities for subsquent letters
@@ -190,7 +191,7 @@ public class WordGenerator {
                     accumulator += nextLetters[prev][index];
                 }
 
-                if(index >= 26){
+                if(index >= 25){
                     isWordComplete = true;
                 }
                 else{
@@ -202,7 +203,7 @@ public class WordGenerator {
             }
 
         }
-
+        
         return tempWord;
     }
 
