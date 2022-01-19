@@ -5,6 +5,7 @@ public class WordGenerator {
 
     private float[] firstLetters;
     private float[][] nextLetters;
+    private float[] wordLength;
     private File book;
 
     public WordGenerator(File source) {
@@ -15,6 +16,8 @@ public class WordGenerator {
         //A-Z, " " where " " includes punctuation, and all non-letter characters
         nextLetters = new float[26][27];
 
+        wordLength = new float[50];
+
         generateProbs();
     }
 
@@ -23,6 +26,7 @@ public class WordGenerator {
 
         int[] firstLetFreq = new int[26];
         int[][] nextLetFreq = new int[26][27];
+        int[] t_wordLength = new int[50];
 
         try{
             Scanner wordScanner = new Scanner(book);
@@ -30,6 +34,8 @@ public class WordGenerator {
 
             while(wordScanner.hasNext()){
                 String tempWord = wordScanner.next();
+                t_wordLength[tempWord.length() - 1] += 1;
+                
                 for(int i = 0; i < tempWord.length(); i++){
                     if(i == 0){
                         //[current]
@@ -86,6 +92,15 @@ public class WordGenerator {
         //copying over probabilities for first letters
         for(int i = 0; i < firstLetters.length; i++){
             firstLetters[i] = ((float)firstLetFreq[i]) / firstLetTotal;
+        }
+
+        //convert wordlengths to probabilities
+        int lengthTotal = 0;
+        for(int i = 0; i < t_wordLength.length; i++){
+            lengthTotal += t_wordLength[i];
+        }
+        for(int i = 0; i < wordLength.length; i++){
+            wordLength[i] = ((float)t_wordLength[i] / lengthTotal);
         }
 
     }
@@ -161,9 +176,24 @@ public class WordGenerator {
         String tempWord = "";
         boolean isWordComplete = false;
 
+        //length selector
+        float lengthSeed = (float)Math.random();
+        float lengthAccumulator = wordLength[0];
+        int lengthIndex = 0;
+        while(lengthAccumulator < lengthSeed){
+            lengthIndex++;
+            lengthAccumulator += wordLength[lengthIndex];
+        }
+        int length = lengthIndex + 1;
+
         char previousChar = ' ';
 
         while(!isWordComplete){
+
+            if(tempWord.length() >= length){
+                isWordComplete = true;
+                break;
+            }
 
             float seed = (float)Math.random();
 
