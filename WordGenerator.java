@@ -1,10 +1,11 @@
 import java.util.Scanner;
+import java.util.Stack;
 import java.io.File;
 
 public class WordGenerator {
 
-    private float[] firstLetters;
-    private float[][] nextLetters;
+    private float[] lastLetters;
+    private float[][] prevLetters;
     private float[] wordLength;
     private File book;
 
@@ -12,11 +13,11 @@ public class WordGenerator {
 
         this.book = source;
         //A-Z
-        firstLetters = new float[26];
+        lastLetters = new float[26];
         //A-Z, " " where " " includes punctuation, and all non-letter characters
-        nextLetters = new float[26][27];
-
-        wordLength = new float[50];
+        prevLetters = new float[26][27];
+        //length 1-19
+        wordLength = new float[20];
 
         generateProbs();
     }
@@ -24,43 +25,37 @@ public class WordGenerator {
     //figures out the probabilities of each letter being followed by another
     private void generateProbs(){
 
-        int[] firstLetFreq = new int[26];
-        int[][] nextLetFreq = new int[26][27];
-        int[] t_wordLength = new int[50];
+        //frequency counters - not probability
+        int[] t_lastLetters = new int[26];
+        int[][] t_prevLetters = new int[26][27];
+        int[] t_wordLength = new int[20];
 
         try{
             Scanner wordScanner = new Scanner(book);
             wordScanner.useDelimiter("[\\W]+");
 
             while(wordScanner.hasNext()){
+
                 String tempWord = wordScanner.next();
+
                 t_wordLength[tempWord.length() - 1] += 1;
                 
-                for(int i = 0; i < tempWord.length(); i++){
-                    if(i == 0){
+                for(int i = tempWord.length() - 1; i >= 0; i--){
+                    if(i == tempWord.length() - 1){
                         //[current]
-                        int index = alphaToInt(tempWord.charAt(0));
-                        if(index == -1) continue;
+                        int currentIndex = alphaToInt(tempWord.charAt(tempWord.length() - 1));
+                        if(currentIndex == -1) continue;
 
-                        firstLetFreq[index] += 1;
-                    }
-                    else if(i == tempWord.length() - 1){
-                        int prevIndex = alphaToInt(tempWord.charAt(i - 1));
-                        int currentIndex = alphaToInt(tempWord.charAt(i));
-                        if(prevIndex == -1 || currentIndex == -1) continue;
-
-                        //[prev, current]
-                        nextLetFreq[prevIndex][currentIndex] += 1;
-                        //[current, next (end of word)]
-                        nextLetFreq[currentIndex][26] += 1;
+                        t_lastLetters[currentIndex] += 1;
                     }
                     else{
-                        int prevIndex = alphaToInt(tempWord.charAt(i - 1));
+                        //[current, next]
                         int currentIndex = alphaToInt(tempWord.charAt(i));
-                        if(prevIndex == -1 || currentIndex == -1) continue;
+                        int nextIndex = alphaToInt(tempWord.charAt(i + 1));
+                        if(nextIndex == -1 || currentIndex == -1) continue;
 
                         //[prev, current]
-                        nextLetFreq[alphaToInt(tempWord.charAt(i - 1))][alphaToInt(tempWord.charAt(i))] += 1;
+                        t_prevLetters[nextIndex][currentIndex] += 1;
                     }
                 }
 
@@ -72,26 +67,26 @@ public class WordGenerator {
             return;
         }
 
-        int firstLetTotal = 0;
-        for(int i = 0; i < firstLetFreq.length; i++){
+        int lastLetTotal = 0;
+        for(int i = 0; i < t_lastLetters.length; i++){
             //taking count for the first letters
-            firstLetTotal += firstLetFreq[i];
+            lastLetTotal += t_lastLetters[i];
 
-            int nextLetTotal = 0;
+            int prevLetTotal = 0;
             //taking count for the subsequent letters
-            for(int j = 0; j < nextLetFreq.length; j++){
-                nextLetTotal += nextLetFreq[i][j];
+            for(int j = 0; j < t_prevLetters.length; j++){
+                prevLetTotal += t_prevLetters[i][j];
             }
 
             //copying over probabilities for subsquent letters
-            for(int j = 0; j < nextLetters.length; j++){
-                nextLetters[i][j] = ((float)nextLetFreq[i][j]) / nextLetTotal;
+            for(int j = 0; j < t_prevLetters.length; j++){
+                prevLetters[i][j] = ((float)t_prevLetters[i][j] / prevLetTotal);
             }
         }
 
         //copying over probabilities for first letters
-        for(int i = 0; i < firstLetters.length; i++){
-            firstLetters[i] = ((float)firstLetFreq[i]) / firstLetTotal;
+        for(int i = 0; i < lastLetters.length; i++){
+            lastLetters[i] = ((float)t_lastLetters[i]) / lastLetTotal;
         }
 
         //convert wordlengths to probabilities
@@ -174,7 +169,8 @@ public class WordGenerator {
 
     public String nextWord(){
         String tempWord = "";
-        boolean isWordComplete = false;
+        Stack<Character> wordStack = new Stack<Character>();
+        char previousChar = ' ';
 
         //length selector
         float lengthSeed = (float)Math.random();
@@ -184,58 +180,55 @@ public class WordGenerator {
             lengthIndex++;
             lengthAccumulator += wordLength[lengthIndex];
         }
-        int length = lengthIndex + 1;
 
-        char previousChar = ' ';
-
-        while(!isWordComplete){
-
-            if(tempWord.length() >= length){
-                isWordComplete = true;
-                break;
-            }
+        for(int i = lengthIndex; i >= 0; i--){
 
             float seed = (float)Math.random();
+            int index = 0;
 
-            if(previousChar == ' '){
+            if(i == lengthIndex){
 
-                int index = 0;
-                float accumulator = firstLetters[0];
+                float accumulator = lastLetters[0];
 
                 while(accumulator < seed){
                     index++;
-                    accumulator += firstLetters[index];
+                    accumulator += lastLetters[index];
                 }
 
-                tempWord += intToAlpha(index, true);
+                wordStack.push(intToAlpha(index, false));
                 previousChar = intToAlpha(index, false);
+
+            }
+            else if(i == 0){
+
+                float accumulator = prevLetters[alphaToInt(previousChar)][0];
+
+                while(accumulator < seed){
+                    index++;
+                    accumulator += prevLetters[alphaToInt(previousChar)][index];
+                }
+
+                wordStack.push(intToAlpha(index, true));
+
             }
             else{
-
-                int index = 0;
-                int prev = alphaToInt(previousChar);
-                float accumulator = nextLetters[prev][0];
+                
+                float accumulator = prevLetters[alphaToInt(previousChar)][0];
 
                 while(accumulator < seed){
                     index++;
-                    accumulator += nextLetters[prev][index];
+                    accumulator += prevLetters[alphaToInt(previousChar)][index];
                 }
 
-                if(index >= 25){
-                    isWordComplete = true;
-                }
-                else{
-                    tempWord += intToAlpha(index, false);
-                    previousChar = intToAlpha(index, false);
-                }
-
-
+                wordStack.push(intToAlpha(index, false));
+                previousChar = intToAlpha(index, false);
             }
-
         }
-        
+
+        while(!wordStack.empty()){
+            tempWord += wordStack.pop();
+        }
+
         return tempWord;
     }
-
-
 }
