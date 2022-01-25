@@ -22,7 +22,6 @@ public class WordGenerator {
         generateSyllables();
     }
 
-    //figures out the probabilities of each letter being followed by another
     private void generateSyllables(){
 
         try{
