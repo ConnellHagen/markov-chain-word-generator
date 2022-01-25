@@ -1,234 +1,144 @@
 import java.util.Scanner;
-import java.util.Stack;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Map;
 import java.io.File;
 
 public class WordGenerator {
 
-    private float[] lastLetters;
-    private float[][] prevLetters;
-    private float[] wordLength;
+    private HashSet<String> syllables;
+    private HashMap<Integer, Integer> wordLength;
+
     private File book;
 
     public WordGenerator(File source) {
 
         this.book = source;
-        //A-Z
-        lastLetters = new float[26];
-        //A-Z, " " where " " includes punctuation, and all non-letter characters
-        prevLetters = new float[26][27];
-        //length 1-19
-        wordLength = new float[20];
 
-        generateProbs();
+        syllables = new HashSet<String>();
+        wordLength = new HashMap<Integer, Integer>();
+
+        generateSyllables();
     }
 
     //figures out the probabilities of each letter being followed by another
-    private void generateProbs(){
-
-        //frequency counters - not probability
-        int[] t_lastLetters = new int[26];
-        int[][] t_prevLetters = new int[26][27];
-        int[] t_wordLength = new int[20];
+    private void generateSyllables(){
 
         try{
             Scanner wordScanner = new Scanner(book);
-            wordScanner.useDelimiter("[\\W]+");
+            wordScanner.useDelimiter("[\\W\\d]+");
 
             while(wordScanner.hasNext()){
 
                 String tempWord = wordScanner.next();
+                int wordSize = tempWord.length();
 
-                t_wordLength[tempWord.length() - 1] += 1;
-                
-                for(int i = tempWord.length() - 1; i >= 0; i--){
-                    if(i == tempWord.length() - 1){
-                        //[current]
-                        int currentIndex = alphaToInt(tempWord.charAt(tempWord.length() - 1));
-                        if(currentIndex == -1) continue;
+                int syllablesInWord = 0;
 
-                        t_lastLetters[currentIndex] += 1;
+                boolean inVowelString = false;
+                String currentSyll = "";
+                for(int i = 0; i < wordSize; i++){
+
+                    currentSyll += tempWord.charAt(i);
+
+                    //denotes the location of syllables
+                    if(i == wordSize - 1){
+                        break;
                     }
-                    else{
-                        //[current, next]
-                        int currentIndex = alphaToInt(tempWord.charAt(i));
-                        int nextIndex = alphaToInt(tempWord.charAt(i + 1));
-                        if(nextIndex == -1 || currentIndex == -1) continue;
+                    else if(isVowel(tempWord.charAt(i))){
+                        
+                        inVowelString = true;
 
-                        //[prev, current]
-                        t_prevLetters[nextIndex][currentIndex] += 1;
+                        //testing if there are any more vowels left (if not, the rest of the word is counted as the rest of the syllable)
+                        String lettersLeft = tempWord.substring(i+1);
+                        if(lettersLeft.matches("[^aeiouy]+")){
+                            currentSyll += tempWord.substring(i);
+                            break;
+                        }
+
                     }
+                    else if(inVowelString){
+                        //adds the syllable to the set
+                        syllablesInWord++;
+                        syllables.add(currentSyll.toLowerCase());
+                        currentSyll = "";
+                        inVowelString = false;
+                    }
+
+                }
+                //adds whatever the current syllable was upon `break` or the end of the word (vowel)
+                if(!currentSyll.isEmpty()){
+                    syllablesInWord++;
+                    syllables.add(currentSyll.toLowerCase());
+                }
+
+
+                //adds the word length to the hash map
+                if(wordLength.containsKey(syllablesInWord)){
+                    int old = wordLength.get(syllablesInWord);
+                    wordLength.replace(syllablesInWord, old, old + 1);
+                }
+                else{
+                    wordLength.put(syllablesInWord, 1);
                 }
 
             }
             wordScanner.close();
+
         }
         catch(Exception e){
             e.printStackTrace();
             return;
         }
 
-        int lastLetTotal = 0;
-        for(int i = 0; i < t_lastLetters.length; i++){
-            //taking count for the first letters
-            lastLetTotal += t_lastLetters[i];
-
-            int prevLetTotal = 0;
-            //taking count for the subsequent letters
-            for(int j = 0; j < t_prevLetters.length; j++){
-                prevLetTotal += t_prevLetters[i][j];
-            }
-
-            //copying over probabilities for subsquent letters
-            for(int j = 0; j < t_prevLetters.length; j++){
-                prevLetters[i][j] = ((float)t_prevLetters[i][j] / prevLetTotal);
-            }
-        }
-
-        //copying over probabilities for first letters
-        for(int i = 0; i < lastLetters.length; i++){
-            lastLetters[i] = ((float)t_lastLetters[i]) / lastLetTotal;
-        }
-
-        //convert wordlengths to probabilities
-        int lengthTotal = 0;
-        for(int i = 0; i < t_wordLength.length; i++){
-            lengthTotal += t_wordLength[i];
-        }
-        for(int i = 0; i < wordLength.length; i++){
-            wordLength[i] = ((float)t_wordLength[i] / lengthTotal);
-        }
-
     }
 
-    private int alphaToInt(char let){
-        switch(let){
-            case 'a': case 'A': return 0;
-            case 'b': case 'B': return 1;
-            case 'c': case 'C': return 2;
-            case 'd': case 'D': return 3;
-            case 'e': case 'E': return 4;
-            case 'f': case 'F': return 5;
-            case 'g': case 'G': return 6;
-            case 'h': case 'H': return 7;
-            case 'i': case 'I': return 8;
-            case 'j': case 'J': return 9;
-            case 'k': case 'K': return 10;
-            case 'l': case 'L': return 11;
-            case 'm': case 'M': return 12;
-            case 'n': case 'N': return 13;
-            case 'o': case 'O': return 14;
-            case 'p': case 'P': return 15;
-            case 'q': case 'Q': return 16;
-            case 'r': case 'R': return 17;
-            case 's': case 'S': return 18;
-            case 't': case 'T': return 19;
-            case 'u': case 'U': return 20;
-            case 'v': case 'V': return 21;
-            case 'w': case 'W': return 22;
-            case 'x': case 'X': return 23;
-            case 'y': case 'Y': return 24;
-            case 'z': case 'Z': return 25;
-            case ' ': case '.': case ',': case '?': case '!': return 26;
-
-            default: return -1;
-        }
-    }
-
-    private char intToAlpha(int num, boolean isUppercase){
-        switch(num){
-            case 0: return (isUppercase ? 'A' : 'a');
-            case 1: return (isUppercase ? 'B' : 'b');
-            case 2: return (isUppercase ? 'C' : 'c');
-            case 3: return (isUppercase ? 'D' : 'd');
-            case 4: return (isUppercase ? 'E' : 'e');
-            case 5: return (isUppercase ? 'F' : 'f');
-            case 6: return (isUppercase ? 'G' : 'g');
-            case 7: return (isUppercase ? 'H' : 'h');
-            case 8: return (isUppercase ? 'I' : 'i');
-            case 9: return (isUppercase ? 'J' : 'j');
-            case 10: return (isUppercase ? 'K' : 'k');
-            case 11: return (isUppercase ? 'L' : 'l');
-            case 12: return (isUppercase ? 'M' : 'm');
-            case 13: return (isUppercase ? 'N' : 'n');
-            case 14: return (isUppercase ? 'O' : 'o');
-            case 15: return (isUppercase ? 'P' : 'p');
-            case 16: return (isUppercase ? 'Q' : 'q');
-            case 17: return (isUppercase ? 'R' : 'r');
-            case 18: return (isUppercase ? 'S' : 's');
-            case 19: return (isUppercase ? 'T' : 't');
-            case 20: return (isUppercase ? 'U' : 'u');
-            case 21: return (isUppercase ? 'V' : 'v');
-            case 22: return (isUppercase ? 'W' : 'w');
-            case 23: return (isUppercase ? 'X' : 'x');
-            case 24: return (isUppercase ? 'Y' : 'y');
-            case 25: return (isUppercase ? 'Z' : 'z');
-            default: return ' ';
-        }
-
+    private boolean isVowel(char let){
+        return let == 'a' || let == 'e' || let == 'i' || let == 'o' || let == 'u' || let == 'y';
     }
 
     public String nextWord(){
+
         String tempWord = "";
-        Stack<Character> wordStack = new Stack<Character>();
-        char previousChar = ' ';
 
-        //length selector
-        float lengthSeed = (float)Math.random();
-        float lengthAccumulator = wordLength[0];
-        int lengthIndex = 0;
-        while(lengthAccumulator < lengthSeed){
-            lengthIndex++;
-            lengthAccumulator += wordLength[lengthIndex];
+        int numSylls = syllables.size();
+
+        int tempSyllProb = 0;
+        for(Map.Entry<Integer, Integer> set : wordLength.entrySet()){
+            tempSyllProb += set.getValue();
         }
 
-        for(int i = lengthIndex; i >= 0; i--){
+        int size_seed = (int)(tempSyllProb * Math.random());
+        int size = 0;
 
-            float seed = (float)Math.random();
-            int index = 0;
-
-            if(i == lengthIndex){
-
-                float accumulator = lastLetters[0];
-
-                while(accumulator < seed){
-                    index++;
-                    accumulator += lastLetters[index];
-                }
-
-                wordStack.push(intToAlpha(index, false));
-                previousChar = intToAlpha(index, false);
-
-            }
-            else if(i == 0){
-
-                float accumulator = prevLetters[alphaToInt(previousChar)][0];
-
-                while(accumulator < seed){
-                    index++;
-                    accumulator += prevLetters[alphaToInt(previousChar)][index];
-                }
-
-                wordStack.push(intToAlpha(index, true));
-
-            }
-            else{
-                
-                float accumulator = prevLetters[alphaToInt(previousChar)][0];
-
-                while(accumulator < seed){
-                    index++;
-                    accumulator += prevLetters[alphaToInt(previousChar)][index];
-                }
-
-                wordStack.push(intToAlpha(index, false));
-                previousChar = intToAlpha(index, false);
+        for(Map.Entry<Integer, Integer> set : wordLength.entrySet()){
+            size_seed -= set.getValue();
+            if(size_seed <= 0){
+                size = set.getKey();
+                break;
             }
         }
 
-        while(!wordStack.empty()){
-            tempWord += wordStack.pop();
+        for(int i = 0; i < size; i++){
+            int seed = (int)(Math.random() * numSylls);
+            Iterator<String> i_syllables = syllables.iterator();
+
+            while(seed > 0){
+                i_syllables.next();
+                seed--;
+            }
+
+            tempWord += i_syllables.next();
         }
 
+        //fixing doubled vowels that should not be happening in english
+        tempWord = tempWord.replaceAll("[a]+", "a");
+        tempWord = tempWord.replaceAll("[i]+", "i");
+        tempWord = tempWord.replaceAll("[u]+", "u");
+        tempWord = tempWord.replaceAll("[y]+", "y");
+            
         return tempWord;
     }
+    
 }
