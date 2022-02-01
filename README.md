@@ -10,6 +10,6 @@ Sometimes the generated words are coincidentally words in english. Sometimes, th
 
 To generate some words, you must first create a `WordGenerator` object using a text `File` as a parameter. The class will then automatically extract out all of the syllables present and create the probabilities for a word to be of a certain length based on the text. To generate a word, use the `nextWord()` method on your `WordGenerator` object, and it will return the word.
 
-To use this code you must have a java compiler such as the JVM installed.
+To use this code you must have a java compiler or interpreter installed.
 
 I made this code as a side project for my computer science class, and you are welcome to use it however you like for free.
